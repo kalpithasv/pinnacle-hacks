@@ -1,0 +1,27 @@
+{
+  "name": "pinnacle-hacks",
+  "version": "1.0.0",
+  "description": "Startup Discovery and Investment Platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\"",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build && pnpm --filter backend build",
+    "build:backend": "pnpm --filter backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "install:all": "pnpm install && pnpm --filter frontend install && pnpm --filter backend install",
+    "clean": "pnpm --filter frontend clean && pnpm --filter backend clean",
+    "db:setup": "cd backend && pnpm db:migrate && pnpm db:seed",
+    "db:reset": "cd backend && pnpm db:migrate reset",
+    "start": "pnpm --filter backend start",
+    "setup": "pnpm install:all && pnpm db:setup"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

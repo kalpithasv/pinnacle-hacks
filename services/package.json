@@ -1,0 +1,15 @@
+{
+  "name": "pinnacle-hacks-services",
+  "version": "1.0.0",
+  "description": "Microservices for Pinnacle Hacks platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter scoring-service dev\" \"pnpm --filter discovery-service dev\" \"pnpm --filter matchmaking-service dev\"",
+    "build": "pnpm --filter scoring-service build && pnpm --filter discovery-service build && pnpm --filter matchmaking-service build",
+    "clean": "pnpm --filter scoring-service clean && pnpm --filter discovery-service clean && pnpm --filter matchmaking-service clean"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
