@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -11,7 +12,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+# Configure OpenRouter
+openai.api_key = os.getenv("OPENROUTER_API_KEY")
+openai.api_base = "https://openrouter.ai/api/v1"
 
 class AnalysisRequest(BaseModel):
     name: str
@@ -33,11 +46,17 @@ class ADKRequest(BaseModel):
 def generate_market_analysis(prompt: str) -> str:
     try:
         completion = openai.chat.completions.create(
-            model="gpt-4",
+            model="google/gemma-2-9b-it:free",  # Free model on OpenRouter
             messages=[
                 {"role": "system", "content": "You are a market research and business analysis expert specializing in agricultural technology and startups."},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            max_tokens=2048,
+            temperature=0.7,
+            extra_headers={
+                "HTTP-Referer": "http://localhost:8080",  # Optional: for tracking
+                "X-Title": "Startup Analysis Tool",  # Optional: for tracking
+            }
         )
         return completion.choices[0].message.content
     except Exception as e:
@@ -78,7 +97,7 @@ if __name__ == "__main__":
     try:
         port = int(os.getenv("PORT", "8080"))
         print(f"Starting server on http://127.0.0.1:{port}")
-        print("OpenAI API Key configured:", "Yes" if openai.api_key else "No")
+        print("OpenRouter API Key configured:", "Yes" if os.getenv("OPENROUTER_API_KEY") else "No")
         uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
     except Exception as e:
         print(f"Failed to start server: {e}")

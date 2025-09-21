@@ -55,6 +55,79 @@ export default function StartupAnalysisForm() {
     }
   })
 
+  // Template function to create structured prompt
+  const createAnalysisPrompt = (data: AnalysisFormData): string => {
+    let prompt = `Please conduct a comprehensive market analysis for the following agricultural technology startup:
+
+**STARTUP DETAILS:**
+- Company Name: ${data.name}
+- Description: ${data.description}
+- Location: ${data.location}
+- Team Size: ${data.employeeCount} employees`
+
+    // Add optional business details
+    if (data.businessModel) {
+      prompt += `\n- Business Model: ${data.businessModel}`
+    }
+    
+    if (data.targetMarket) {
+      prompt += `\n- Target Market: ${data.targetMarket}`
+    }
+
+    // Add land details if provided
+    if (data.landType || data.landArea) {
+      prompt += `\n\n**LAND/AGRICULTURAL FOCUS:**`
+      if (data.landType) {
+        prompt += `\n- Land Type: ${data.landType}`
+      }
+      if (data.landArea) {
+        prompt += `\n- Land Area: ${data.landArea} acres`
+      }
+    }
+
+    prompt += `
+
+**ANALYSIS REQUIREMENTS:**
+Please provide a detailed analysis covering the following areas:
+
+1. **Executive Summary**: Brief overview of the startup's potential and key findings
+
+2. **Market Analysis**:
+   - Market size and growth potential in the agricultural technology sector
+   - Competitive landscape analysis
+   - Key market opportunities and challenges
+   - Regional market considerations for ${data.location}
+
+3. **Business Model Evaluation**:
+   - Strengths and weaknesses of the current approach
+   - Revenue potential and scalability assessment
+   - Value proposition analysis
+
+4. **Target Market Assessment**:
+   - Customer segment analysis
+   - Market penetration strategies
+   - Customer acquisition potential
+
+5. **Geographical Indication (GI) Analysis**:
+   - Potential for GI product integration
+   - Regional agricultural product opportunities
+   - Market uniqueness score and potential
+
+6. **Strategic Recommendations**:
+   - Immediate actions (next 3 months)
+   - Short-term goals (6-12 months)
+   - Long-term strategic direction
+
+7. **Risk Assessment**:
+   - Market risks and mitigation strategies
+   - Operational challenges
+   - Regulatory considerations
+
+Please structure your response as a comprehensive business analysis report suitable for investors and stakeholders.`
+
+    return prompt
+  }
+
   const onSubmit = async (data: AnalysisFormData) => {
     setIsGenerating(true)
     setError(null)
@@ -72,31 +145,119 @@ export default function StartupAnalysisForm() {
         })
       }, 500)
 
-      const response = await fetch('/api/analysis/generate', {
+      // Create the structured prompt
+      const analysisPrompt = createAnalysisPrompt(data)
+
+      // Format the request according to ADK structure
+      const requestBody = {
+        app_name: "startup-analysis-tool",
+        user_id: localStorage.getItem('userId') || 'anonymous_user',
+        session_id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        streaming: false,
+        new_message: {
+          parts: [
+            {
+              text: analysisPrompt
+            }
+          ],
+          role: "user"
+        }
+      }
+
+      console.log('Sending request:', requestBody)
+
+      const response = await fetch('http://127.0.0.1:8080/run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(requestBody)
       })
 
       clearInterval(progressInterval)
       setProgress(100)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate analysis')
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`API Error: ${response.status} - ${errorText}`)
       }
 
       const result = await response.json()
-      setAnalysisResult(result.data)
+      console.log('API Response:', result)
+
+      // Transform the ADK response to our expected format
+      const transformedResult = {
+        analysisId: `analysis_${Date.now()}`,
+        analysis: parseAnalysisResponse(result[0]?.content?.parts?.[0]?.text || ''),
+        generatedAt: new Date().toISOString()
+      }
+
+      setAnalysisResult(transformedResult)
     } catch (error) {
       console.error('Analysis generation error:', error)
       setError(error instanceof Error ? error.message : 'Failed to generate analysis')
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // Function to parse the AI response and structure it
+  const parseAnalysisResponse = (responseText: string) => {
+    // Basic parsing - you can enhance this based on your needs
+    return {
+      executiveSummary: extractSection(responseText, 'Executive Summary') || 'Analysis completed successfully.',
+      marketAnalysis: {
+        marketSize: extractSection(responseText, 'Market Analysis') || 'Market analysis provided.',
+        competition: extractSection(responseText, 'Competitive') || 'Competitive analysis included.',
+        opportunities: extractBulletPoints(responseText, 'opportunities') || []
+      },
+      businessModelAnalysis: {
+        valueProposition: extractSection(responseText, 'Value Proposition') || 'Business model evaluated.',
+        scalability: extractSection(responseText, 'Scalability') || 'Scalability assessment provided.'
+      },
+      recommendations: {
+        immediate: extractBulletPoints(responseText, 'Immediate') || [],
+        shortTerm: extractBulletPoints(responseText, 'Short-term') || []
+      },
+      giAnalysis: {
+        marketPotential: Math.floor(Math.random() * 40) + 60, // Mock score
+        uniquenessScore: Math.floor(Math.random() * 40) + 60, // Mock score
+        identifiedProducts: []
+      },
+      fullText: responseText // Keep the full response for display
+    }
+  }
+
+  // Helper function to extract sections (basic implementation)
+  const extractSection = (text: string, sectionName: string): string => {
+    const regex = new RegExp(`\\*\\*${sectionName}[^\\*]*\\*\\*([^\\*]+)`, 'i')
+    const match = text.match(regex)
+    return match ? match[1].trim() : ''
+  }
+
+  // Helper function to extract bullet points
+  const extractBulletPoints = (text: string, keyword: string): string[] => {
+    const lines = text.split('\n')
+    const bulletPoints: string[] = []
+    let inSection = false
+    
+    for (const line of lines) {
+      if (line.toLowerCase().includes(keyword.toLowerCase())) {
+        inSection = true
+        continue
+      }
+      if (inSection && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
+        bulletPoints.push(line.replace(/^[-•\d.]\s*/, '').trim())
+      } else if (inSection && line.trim() === '') {
+        continue
+      } else if (inSection && line.startsWith('**')) {
+        break
+      }
+    }
+    
+    return bulletPoints.slice(0, 5) // Limit to 5 items
   }
 
   const downloadPDF = async (analysisId: string, startupName: string) => {
@@ -387,118 +548,86 @@ export default function StartupAnalysisForm() {
   )
 }
 
-// Component to display the analysis results
+// Component to display the analysis results - enhanced to show full text
 function AnalysisReportViewer({ analysis }: { analysis: any }) {
   return (
     <div className="space-y-6">
-      {/* Executive Summary */}
+      {/* Full AI Response */}
       <Card>
         <CardHeader>
-          <CardTitle>Executive Summary</CardTitle>
+          <CardTitle>AI Analysis Report</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground leading-relaxed">{analysis.executiveSummary}</p>
-        </CardContent>
-      </Card>
-
-      {/* Market Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Market Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-medium mb-2">Market Size</h4>
-            <p className="text-muted-foreground">{analysis.marketAnalysis.marketSize}</p>
-          </div>
-          <div>
-            <h4 className="font-medium mb-2">Competition</h4>
-            <p className="text-muted-foreground">{analysis.marketAnalysis.competition}</p>
-          </div>
-          {analysis.marketAnalysis.opportunities.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-2">Key Opportunities</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {analysis.marketAnalysis.opportunities.map((opp: string, index: number) => (
-                  <li key={index} className="text-muted-foreground">{opp}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Business Model Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Business Model Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-medium mb-2">Value Proposition</h4>
-            <p className="text-muted-foreground">{analysis.businessModelAnalysis.valueProposition}</p>
-          </div>
-          <div>
-            <h4 className="font-medium mb-2">Scalability</h4>
-            <p className="text-muted-foreground">{analysis.businessModelAnalysis.scalability}</p>
+          <div className="prose prose-sm max-w-none">
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
+              {analysis.fullText}
+            </pre>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recommendations</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {analysis.recommendations.immediate.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-2">Immediate Actions (Next 3 Months)</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {analysis.recommendations.immediate.map((rec: string, index: number) => (
-                  <li key={index} className="text-muted-foreground">{rec}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {analysis.recommendations.shortTerm.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-2">Short-term Goals (6-12 Months)</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {analysis.recommendations.shortTerm.map((rec: string, index: number) => (
-                  <li key={index} className="text-muted-foreground">{rec}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* GI Analysis */}
-      {analysis.giAnalysis && (
+      {/* Structured Sections (if parsing worked) */}
+      {analysis.executiveSummary && (
         <Card>
           <CardHeader>
-            <CardTitle>Geographical Indication Analysis</CardTitle>
+            <CardTitle>Executive Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground leading-relaxed">{analysis.executiveSummary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Market Analysis */}
+      {analysis.marketAnalysis && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Market Analysis</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-medium mb-2">Market Potential</h4>
-                <Badge variant="outline">{analysis.giAnalysis.marketPotential}/100</Badge>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Uniqueness Score</h4>
-                <Badge variant="outline">{analysis.giAnalysis.uniquenessScore}/100</Badge>
-              </div>
+            <div>
+              <h4 className="font-medium mb-2">Market Overview</h4>
+              <p className="text-muted-foreground">{analysis.marketAnalysis.marketSize}</p>
             </div>
-            {analysis.giAnalysis.identifiedProducts.length > 0 && (
+            {analysis.marketAnalysis.opportunities.length > 0 && (
               <div>
-                <h4 className="font-medium mb-2">Identified GI Products</h4>
-                <div className="flex flex-wrap gap-2">
-                  {analysis.giAnalysis.identifiedProducts.map((product: string, index: number) => (
-                    <Badge key={index} variant="secondary">{product}</Badge>
+                <h4 className="font-medium mb-2">Key Opportunities</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {analysis.marketAnalysis.opportunities.map((opp: string, index: number) => (
+                    <li key={index} className="text-muted-foreground">{opp}</li>
                   ))}
-                </div>
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recommendations */}
+      {(analysis.recommendations.immediate.length > 0 || analysis.recommendations.shortTerm.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommendations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {analysis.recommendations.immediate.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Immediate Actions</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {analysis.recommendations.immediate.map((rec: string, index: number) => (
+                    <li key={index} className="text-muted-foreground">{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {analysis.recommendations.shortTerm.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Short-term Goals</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {analysis.recommendations.shortTerm.map((rec: string, index: number) => (
+                    <li key={index} className="text-muted-foreground">{rec}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </CardContent>
