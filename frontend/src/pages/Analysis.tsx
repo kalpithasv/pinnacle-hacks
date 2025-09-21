@@ -103,7 +103,7 @@ export default function Analysis() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Startup Analysis</h1>
         <p className="text-muted-foreground">
-          Generate comprehensive AI-powered analysis reports for your AgriTech startup using Google ADK.
+          Generate comprehensive AI-powered analysis reports for your AgriTech startup using Google Gemini.
         </p>
       </div>
 

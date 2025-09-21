@@ -66,7 +66,7 @@ export default function StartupAnalysisForm() {
 
   // Template function to create structured prompt
   const createAnalysisPrompt = (data: AnalysisFormData): string => {
-    let prompt = `Please conduct a comprehensive market analysis for the following agricultural technology startup:
+  let prompt = `Please conduct a comprehensive market analysis for the following agricultural technology startup using Google Gemini:
 
 **STARTUP DETAILS:**
 - Company Name: ${data.name}
@@ -670,16 +670,19 @@ Please structure your response as a comprehensive business analysis report suita
 function AnalysisReportViewer({ analysis }: { analysis: any }) {
   return (
     <div className="space-y-6">
-      {/* Full AI Response */}
+      {/* Full Gemini AI Response always shown */}
       <Card>
         <CardHeader>
-          <CardTitle>AI Analysis Report</CardTitle>
+          <CardTitle>Gemini AI Full Response</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="prose prose-sm max-w-none">
             <pre className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
               {analysis.fullText}
             </pre>
+          </div>
+          <div className="mt-4 text-xs text-muted-foreground">
+            <strong>Tip:</strong> You can download this entire report as a PDF using the button above.
           </div>
         </CardContent>
       </Card>
