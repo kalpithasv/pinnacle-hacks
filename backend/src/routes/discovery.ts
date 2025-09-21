@@ -6,6 +6,42 @@ import axios from "axios";
 const router: express.Router = express.Router();
 const prisma = new PrismaClient();
 
+// Define the schema for verified project data
+const projectDataSchema = z.object({
+  // Basic info
+  name: z.string().min(1, "Name is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  industry: z.string().min(1, "Industry is required"),
+  
+  // Online presence
+  website: z.string().url().optional(),
+  githubUrl: z.string().url().optional(),
+  twitterUrl: z.string().url().optional(),
+  
+  // Location and team
+  location: z.string().min(1, "Location is required"),
+  teamSize: z.number().int().positive("Team size must be at least 1"),
+  stage: z.enum(["idea", "mvp", "early", "growth", "scale"]),
+  tags: z.array(z.string()).optional().default([]),
+
+  // Founder info
+  founderName: z.string().min(1, "Founder name is required"),
+  founderEmail: z.string().email("Invalid email address"),
+  founderPhone: z.string().optional(),
+
+  // Land details
+  landArea: z.number().positive("Land area must be positive"),
+  landOwnership: z.enum(["owned", "leased", "partnership"]),
+  landType: z.string().min(1, "Land type is required"),
+
+  // Business details
+  businessModel: z.string().min(1, "Business model is required"),
+  targetMarket: z.string().min(1, "Target market is required"),
+  currentFunding: z.number().default(0),
+  expectedRevenue: z.number().optional(),
+  fundingRequired: z.number().optional(),
+});
+
 // Validation schemas
 const discoverBusinessesSchema = z.object({
   location: z.string().min(1),
@@ -15,23 +51,8 @@ const discoverBusinessesSchema = z.object({
 });
 
 const verifyDiscoverySchema = z.object({
-  discoveryId: z.string(),
   status: z.enum(["verified", "rejected"]),
-  projectData: z
-    .object({
-      name: z.string(),
-      description: z.string(),
-      industry: z.string(),
-      website: z.string().url().optional(),
-      githubUrl: z.string().url().optional(),
-      twitterUrl: z.string().url().optional(),
-      location: z.string(),
-      teamSize: z.number().positive(),
-      foundedYear: z.number().min(1900).max(new Date().getFullYear()),
-      stage: z.enum(["idea", "mvp", "early", "growth", "scale"]),
-      tags: z.array(z.string()).optional(),
-    })
-    .optional(),
+  projectData: projectDataSchema.optional(),
 });
 
 // GET /api/discovery - Get all discoveries with filtering
@@ -203,20 +224,44 @@ router.put("/:id/verify", async (req, res) => {
 
     if (status === "verified" && projectData) {
       // Create a new project from the verified discovery
+      // Create a startup record with all required fields
       const project = await prisma.agriTechStartup.create({
         data: {
+          // Basic info
           name: projectData.name,
           description: projectData.description,
-          industry: projectData.industry ?? null, // ✅ fixed typing
+          industry: projectData.industry,
+          
+          // Online presence
           website: projectData.website,
           githubUrl: projectData.githubUrl,
           twitterUrl: projectData.twitterUrl,
-          landLocation: projectData.location, // ✅ mapped correctly
+          
+          // Land details
+          landLocation: projectData.location,
+          landArea: projectData.landArea,
+          landOwnership: projectData.landOwnership,
+          landType: projectData.landType,
+          
+          // Team & Stage
           teamSize: projectData.teamSize,
           stage: projectData.stage,
-          tags: projectData.tags || [],
-          isVerified: false, // since default is false
-          // ⚠ foundedYear field does not exist in schema, so remove or map if needed
+          tags: projectData.tags ?? [],
+          
+          // Founder details
+          founderName: projectData.founderName,
+          founderEmail: projectData.founderEmail,
+          founderPhone: projectData.founderPhone,
+          
+          // Business details
+          businessModel: projectData.businessModel,
+          targetMarket: projectData.targetMarket,
+          currentFunding: projectData.currentFunding,
+          expectedRevenue: projectData.expectedRevenue,
+          fundingRequired: projectData.fundingRequired,
+          
+          // Status
+          isVerified: false,
         },
       });
 

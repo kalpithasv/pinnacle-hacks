@@ -102,7 +102,7 @@ class ADKService {
   ): Promise<StartupAnalysisReport> {
     try {
       const adkRequest: ADKRequest = {
-        app_name: "startup-analysis-agent",
+        app_name: "simple_market_research",
         user_id: "system",
         session_id: `startup-${Date.now()}`,
         new_message: {

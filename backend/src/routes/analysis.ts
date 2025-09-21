@@ -5,6 +5,27 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import adkService, { StartupAnalysisRequest } from '../services/adkService'
 import pdfService from '../services/pdfService'
 
+interface DbAnalysis {
+  id: string;
+  startupName: string;
+  description: string;
+  employeeCount: number;
+  location: string;
+  businessModel: string | null;
+  targetMarket: string | null;
+  landType: string | null;
+  landArea: number | null;
+  analysisData: string;
+  generatedBy: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  generatedByUser: {
+    name: string;
+    email: string;
+  };
+}
+
 const router: express.Router = express.Router()
 const prisma = new PrismaClient()
 
@@ -175,7 +196,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     res.json({
       success: true,
-      data: analyses.map(analysis => ({
+      data: analyses.map((analysis: DbAnalysis) => ({
         id: analysis.id,
         startupName: analysis.startupName,
         location: analysis.location,
@@ -232,10 +253,10 @@ router.post('/:id/pdf', authenticateToken, async (req: AuthRequest, res) => {
       description: analysis.description,
       employeeCount: analysis.employeeCount,
       location: analysis.location,
-      businessModel: analysis.businessModel,
-      targetMarket: analysis.targetMarket,
-      landType: analysis.landType,
-      landArea: analysis.landArea
+      businessModel: analysis.businessModel ?? undefined,
+      targetMarket: analysis.targetMarket ?? undefined,
+      landType: analysis.landType ?? undefined,
+      landArea: analysis.landArea ?? undefined
     }
 
     // Generate PDF

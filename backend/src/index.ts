@@ -14,6 +14,7 @@ import matchmakingRoutes from "./routes/matchmaking";
 import scoringRoutes from "./routes/scoring";
 import discoveryRoutes from "./routes/discovery";
 import analysisRoutes from "./routes/analysis";
+import marketResearchRoutes from "./routes/market-research";
 import { Request, Response } from "express";
 
 // Load environment variables
@@ -53,6 +54,7 @@ app.use("/api/matchmaking", matchmakingRoutes);
 app.use("/api/scoring", scoringRoutes);
 app.use("/api/discovery", discoveryRoutes);
 app.use("/api/analysis", analysisRoutes);
+app.use("/api/market-research", marketResearchRoutes);
 
 // Error handling middleware
 app.use(
