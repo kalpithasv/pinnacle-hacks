@@ -1,16 +1,15 @@
-import { Routes, Route } from 'react-router-dom'
-import { Toaster } from '@/components/ui/toaster'
-import Layout from '@/components/Layout'
-import Home from '@/pages/Home'
-import Startups from '@/pages/Startups'
-import StartupDetail from '@/pages/StartupDetail'
-import Investors from '@/pages/Investors'
-import Dashboard from '@/pages/Dashboard'
-import Matchmaking from '@/pages/Matchmaking'
-import Login from '@/pages/Login'
-import Register from '@/pages/Register'
-import SubmitStartup from '@/pages/SubmitStartup'
-import Analysis from '@/pages/Analysis'
+import { Routes, Route } from "react-router-dom";
+import { Toaster } from "./components/ui/toaster";
+import Layout from "./components/Layout";
+import Home from "./pages/Home";
+import StartupDetail from "./pages/StartupDetail";
+import Investors from "./pages/Investors";
+import Dashboard from "./pages/Dashboard";
+import Matchmaking from "./pages/Matchmaking";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import SubmitStartup from "./pages/SubmitStartup";
+import Analysis from "./pages/Analysis";
 
 function App() {
   return (
@@ -18,7 +17,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="startups" element={<Startups />} />
           <Route path="startups/:id" element={<StartupDetail />} />
           <Route path="investors" element={<Investors />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -31,7 +29,7 @@ function App() {
       </Routes>
       <Toaster />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

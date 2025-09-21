@@ -11,255 +11,256 @@ datasource db {
 }
 
 model AgriTechStartup {
-  id                String   @id @default(cuid())
-  name              String
-  description       String
-  founderName       String
-  founderEmail      String
-  founderPhone      String?
-  
+  id           String  @id @default(cuid())
+  name         String
+  description  String
+  founderName  String
+  founderEmail String
+  founderPhone String?
+  industry     String?
+
   // Land Details
-  landLocation      String
-  landArea          Float    // in acres
-  landOwnership     String   // owned, leased, partnership
-  landType          String   // agricultural, horticultural, livestock, etc.
-  
+  landLocation  String
+  landArea      Float // in acres
+  landOwnership String // owned, leased, partnership
+  landType      String // agricultural, horticultural, livestock, etc.
+
   // Startup Details
-  businessModel     String
-  targetMarket      String
-  expectedRevenue   Int?
-  fundingRequired   Int?
-  currentFunding    Int      @default(0)
-  teamSize          Int      @default(1)
-  stage             String   // idea, prototype, mvp, early, growth
-  
+  businessModel   String
+  targetMarket    String
+  expectedRevenue Int?
+  fundingRequired Int?
+  currentFunding  Int    @default(0)
+  teamSize        Int    @default(1)
+  stage           String // idea, prototype, mvp, early, growth
+
   // Technical Integration
-  githubUrl         String?
-  twitterUrl        String?
-  website           String?
-  logo              String?
-  
+  githubUrl  String?
+  twitterUrl String?
+  website    String?
+  logo       String?
+
   // GI Analysis Results
-  giAnalysis        String?  // JSON string from ADK
-  giCertified       Boolean  @default(false)
-  giProducts        String[] // List of GI products identified
-  
+  giAnalysis  String? // JSON string from ADK
+  giCertified Boolean  @default(false)
+  giProducts  String[] // List of GI products identified
+
   // Scoring
-  techScore         Int      @default(0)
-  socialScore       Int      @default(0)
-  giScore           Int      @default(0)
-  overallScore      Int      @default(0)
-  
+  techScore    Int @default(0)
+  socialScore  Int @default(0)
+  giScore      Int @default(0)
+  overallScore Int @default(0)
+
   // Status
-  status            String   @default("pending") // pending, approved, rejected
-  isVerified        Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  tags              String[]
-  
+  status     String   @default("pending") // pending, approved, rejected
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tags       String[]
+
   // Relations
-  founder           User @relation(fields: [founderEmail], references: [email])
-  metrics           AgriTechMetrics?
-  techScoreData     TechScore?
-  socialScoreData   SocialScore?
-  giAnalysisData    GIAnalysis?
-  matches           Match[]
-  ratings           Rating[]
-  
+  founder         User             @relation(fields: [founderEmail], references: [email])
+  metrics         AgriTechMetrics?
+  techScoreData   TechScore?
+  socialScoreData SocialScore?
+  giAnalysisData  GIAnalysis?
+  matches         Match[]
+  ratings         Rating[]
+
   @@map("agritech_startups")
 }
 
 model AgriTechMetrics {
-  id              String  @id @default(cuid())
-  startupId       String  @unique
-  githubStars     Int?
-  githubForks     Int?
-  githubCommits   Int?
-  githubPrs       Int?
-  githubIssues    Int?
-  twitterFollowers Int?
-  twitterTweets   Int?
+  id                String   @id @default(cuid())
+  startupId         String   @unique
+  githubStars       Int?
+  githubForks       Int?
+  githubCommits     Int?
+  githubPrs         Int?
+  githubIssues      Int?
+  twitterFollowers  Int?
+  twitterTweets     Int?
   twitterEngagement Float?
-  lastUpdated     DateTime @default(now())
-  
-  startup         AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  
+  lastUpdated       DateTime @default(now())
+
+  startup AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
   @@map("agritech_metrics")
 }
 
 model TechScore {
-  id                String   @id @default(cuid())
-  startupId         String   @unique
-  score             Int
-  codeActivity      Int      // Weight: 30%
-  communityEngagement Int    // Weight: 25%
-  projectMaintenance Int     // Weight: 25%
-  codeQuality       Int      // Weight: 20%
-  lastUpdated       DateTime @default(now())
-  
-  startup           AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  
+  id                  String   @id @default(cuid())
+  startupId           String   @unique
+  score               Int
+  codeActivity        Int // Weight: 30%
+  communityEngagement Int // Weight: 25%
+  projectMaintenance  Int // Weight: 25%
+  codeQuality         Int // Weight: 20%
+  lastUpdated         DateTime @default(now())
+
+  startup AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
   @@map("tech_scores")
 }
 
 model SocialScore {
-  id                String   @id @default(cuid())
-  startupId         String   @unique
-  score             Int
-  reach             Int      // Weight: 40%
-  engagement        Int      // Weight: 35%
-  activity          Int      // Weight: 25%
-  lastUpdated       DateTime @default(now())
-  
-  startup           AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  
+  id          String   @id @default(cuid())
+  startupId   String   @unique
+  score       Int
+  reach       Int // Weight: 40%
+  engagement  Int // Weight: 35%
+  activity    Int // Weight: 25%
+  lastUpdated DateTime @default(now())
+
+  startup AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
   @@map("social_scores")
 }
 
 // GI Analysis Model
 model GIAnalysis {
-  id                String   @id @default(cuid())
-  startupId         String   @unique
-  analysisData      String   // JSON from ADK API
-  giProducts        String[] // Identified GI products
-  geographicalRegion String
+  id                  String   @id @default(cuid())
+  startupId           String   @unique
+  analysisData        String // JSON from ADK API
+  giProducts          String[] // Identified GI products
+  geographicalRegion  String
   certificationStatus String
-  marketPotential   Int      // Score 1-100
-  uniquenessScore   Int      // Score 1-100
-  lastUpdated       DateTime @default(now())
-  
-  startup           AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  
+  marketPotential     Int // Score 1-100
+  uniquenessScore     Int // Score 1-100
+  lastUpdated         DateTime @default(now())
+
+  startup AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
   @@map("gi_analysis")
 }
 
 // User Authentication
 model User {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  password          String
-  name              String
-  phone             String?
-  role              String   // founder, investor, admin
-  isVerified        Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  name       String
+  phone      String?
+  role       String // founder, investor, admin
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   // Relations
-  startups          AgriTechStartup[]
-  ratings           Rating[]
-  analyses          StartupAnalysis[]
-  
+  startups AgriTechStartup[]
+  ratings  Rating[]
+  analyses StartupAnalysis[]
+
   @@map("users")
 }
 
 // Rating System
 model Rating {
-  id                String   @id @default(cuid())
-  startupId         String
-  userId            String
-  rating            Int      // 1-5 stars
-  review            String?
-  category          String   // overall, innovation, market_potential, team
-  createdAt         DateTime @default(now())
-  
-  startup           AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  startupId String
+  userId    String
+  rating    Int // 1-5 stars
+  review    String?
+  category  String // overall, innovation, market_potential, team
+  createdAt DateTime @default(now())
+
+  startup AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([startupId, userId, category])
   @@map("ratings")
 }
 
 model Investor {
-  id                String   @id @default(cuid())
-  name              String
-  email             String   @unique
-  company           String?
-  title             String?
-  bio               String?
-  avatar            String?
-  location          String?
-  investmentRangeMin Int
-  investmentRangeMax Int
-  preferredStages   String[]
+  id                  String   @id @default(cuid())
+  name                String
+  email               String   @unique
+  company             String?
+  title               String?
+  bio                 String?
+  avatar              String?
+  location            String?
+  investmentRangeMin  Int
+  investmentRangeMax  Int
+  preferredStages     String[]
   preferredIndustries String[] // agritech, horticulture, livestock, etc.
-  portfolio         String[] // startup IDs
-  techScoreMin      Int      @default(0)
-  socialScoreMin    Int      @default(0)
-  giScoreMin        Int      @default(0)
-  teamSizeMin       Int      @default(0)
-  foundedYearMin    Int      @default(0)
-  rating            Float    @default(0) // Average rating from startups
-  totalInvestments  Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  portfolio           String[] // startup IDs
+  techScoreMin        Int      @default(0)
+  socialScoreMin      Int      @default(0)
+  giScoreMin          Int      @default(0)
+  teamSizeMin         Int      @default(0)
+  foundedYearMin      Int      @default(0)
+  rating              Float    @default(0) // Average rating from startups
+  totalInvestments    Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
   // Relations
-  matches           Match[]
-  
+  matches Match[]
+
   @@map("investors")
 }
 
 model Match {
-  id          String   @id @default(cuid())
-  investorId  String
-  startupId   String
-  score       Int
-  reasons     String[]
-  status      String   // pending, accepted, rejected, contacted
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  investor    Investor @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  startup     AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
-  
+  id         String   @id @default(cuid())
+  investorId String
+  startupId  String
+  score      Int
+  reasons    String[]
+  status     String // pending, accepted, rejected, contacted
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  investor Investor        @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  startup  AgriTechStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
   @@unique([investorId, startupId])
   @@map("matches")
 }
 
 model GeoSocialDiscovery {
-  id              String   @id @default(cuid())
-  location        String
-  businessName    String
-  socialMediaUrl  String
-  description     String
-  industry        String
-  confidence      Float
-  status          String   // pending, verified, rejected
-  discoveredAt    DateTime @default(now())
-  
+  id             String   @id @default(cuid())
+  location       String
+  businessName   String
+  socialMediaUrl String
+  description    String
+  industry       String
+  confidence     Float
+  status         String // pending, verified, rejected
+  discoveredAt   DateTime @default(now())
+
   @@map("geo_social_discoveries")
 }
 
 model ApiKey {
-  id          String   @id @default(cuid())
-  service     String   // github, twitter, gemini
-  key         String
-  isActive    Boolean  @default(true)
-  lastUsed    DateTime?
-  createdAt   DateTime @default(now())
-  
+  id        String    @id @default(cuid())
+  service   String // github, twitter, gemini
+  key       String
+  isActive  Boolean   @default(true)
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+
   @@map("api_keys")
 }
 
 model StartupAnalysis {
-  id                String   @id @default(cuid())
-  startupName       String
-  description       String
-  employeeCount     Int
-  location          String
-  businessModel     String?
-  targetMarket      String?
-  landType          String?
-  landArea          Float?
-  analysisData      String   // JSON string containing the full analysis
-  generatedBy       String
-  status            String   @default("pending") // pending, completed, failed
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id            String   @id @default(cuid())
+  startupName   String
+  description   String
+  employeeCount Int
+  location      String
+  businessModel String?
+  targetMarket  String?
+  landType      String?
+  landArea      Float?
+  analysisData  String // JSON string containing the full analysis
+  generatedBy   String
+  status        String   @default("pending") // pending, completed, failed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   // Relations
-  generatedByUser   User @relation(fields: [generatedBy], references: [id])
-  
+  generatedByUser User @relation(fields: [generatedBy], references: [id])
+
   @@map("startup_analyses")
 }
