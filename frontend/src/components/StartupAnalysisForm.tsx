@@ -1,59 +1,68 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { 
-  FileText, 
-  Download, 
-  MapPin, 
-  Users, 
-  Building, 
+// ...existing code...
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  FileText,
+  Download,
+  MapPin,
+  Users,
+  Building,
   Target,
   Loader2,
   CheckCircle,
-  AlertCircle
-} from 'lucide-react'
+  AlertCircle,
+} from "lucide-react";
 
 const analysisSchema = z.object({
-  name: z.string().min(1, 'Startup name is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  employeeCount: z.number().min(1, 'Employee count must be at least 1'),
-  location: z.string().min(1, 'Location is required'),
+  name: z.string().min(1, "Startup name is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  employeeCount: z.number().min(1, "Employee count must be at least 1"),
+  location: z.string().min(1, "Location is required"),
   businessModel: z.string().optional(),
   targetMarket: z.string().optional(),
   landType: z.string().optional(),
-  landArea: z.number().positive().optional()
-})
+  landArea: z.number().positive().optional(),
+});
 
-type AnalysisFormData = z.infer<typeof analysisSchema>
+type AnalysisFormData = z.infer<typeof analysisSchema>;
 
 interface AnalysisResult {
-  analysisId: string
-  analysis: any
-  generatedAt: string
+  analysisId: string;
+  analysis: any;
+  generatedAt: string;
 }
 
 export default function StartupAnalysisForm() {
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    null
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
   } = useForm<AnalysisFormData>({
     resolver: zodResolver(analysisSchema),
     defaultValues: {
-      employeeCount: 1
-    }
-  })
+      employeeCount: 1,
+    },
+  });
 
   // Template function to create structured prompt
   const createAnalysisPrompt = (data: AnalysisFormData): string => {
@@ -63,25 +72,25 @@ export default function StartupAnalysisForm() {
 - Company Name: ${data.name}
 - Description: ${data.description}
 - Location: ${data.location}
-- Team Size: ${data.employeeCount} employees`
+- Team Size: ${data.employeeCount} employees`;
 
     // Add optional business details
     if (data.businessModel) {
-      prompt += `\n- Business Model: ${data.businessModel}`
+      prompt += `\n- Business Model: ${data.businessModel}`;
     }
-    
+
     if (data.targetMarket) {
-      prompt += `\n- Target Market: ${data.targetMarket}`
+      prompt += `\n- Target Market: ${data.targetMarket}`;
     }
 
     // Add land details if provided
     if (data.landType || data.landArea) {
-      prompt += `\n\n**LAND/AGRICULTURAL FOCUS:**`
+      prompt += `\n\n**LAND/AGRICULTURAL FOCUS:**`;
       if (data.landType) {
-        prompt += `\n- Land Type: ${data.landType}`
+        prompt += `\n- Land Type: ${data.landType}`;
       }
       if (data.landArea) {
-        prompt += `\n- Land Area: ${data.landArea} acres`
+        prompt += `\n- Land Area: ${data.landArea} acres`;
       }
     }
 
@@ -123,170 +132,239 @@ Please provide a detailed analysis covering the following areas:
    - Operational challenges
    - Regulatory considerations
 
-Please structure your response as a comprehensive business analysis report suitable for investors and stakeholders.`
+Please structure your response as a comprehensive business analysis report suitable for investors and stakeholders.`;
 
-    return prompt
-  }
+    return prompt;
+  };
 
   const onSubmit = async (data: AnalysisFormData) => {
-    setIsGenerating(true)
-    setError(null)
-    setProgress(0)
+    setIsGenerating(true);
+    setError(null);
+    setProgress(0);
+
+    // prefer configured API URL, fallback to same origin + /api
+    const apiBase: string =
+      (import.meta.env.VITE_API_URL as string | undefined) ??
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/api`
+        : "/api");
 
     try {
-      // Simulate progress updates
+      // progress simulation
       const progressInterval = setInterval(() => {
-        setProgress(prev => {
+        setProgress((prev) => {
           if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
+            clearInterval(progressInterval);
+            return 90;
           }
-          return prev + 10
-        })
-      }, 500)
+          return prev + 10;
+        });
+      }, 500);
 
-      // Create the structured prompt
-      const analysisPrompt = createAnalysisPrompt(data)
+      // Ensure numeric fields are numbers
+      const payloadToSend = {
+        ...data,
+        employeeCount: Number((data as any).employeeCount) || 0,
+        landArea:
+          (data as any).landArea !== undefined &&
+          (data as any).landArea !== null
+            ? Number((data as any).landArea)
+            : undefined,
+      };
 
-      // Format the request according to ADK structure
-      const requestBody = {
-        app_name: "startup-analysis-tool",
-        user_id: localStorage.getItem('userId') || 'anonymous_user',
-        session_id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        streaming: false,
-        new_message: {
-          parts: [
-            {
-              text: analysisPrompt
-            }
-          ],
-          role: "user"
+      // Call backend API which will call Gemini server-side
+      const res = await fetch(`${apiBase}/analysis/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify(payloadToSend),
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server error ${res.status}: ${text}`);
+      }
+
+      const payload = await res.json();
+      if (!payload?.success || !payload?.data) {
+        throw new Error("Invalid response from server");
+      }
+
+      // Normalize response fields (support different backends)
+      const analysisId = payload.data.analysisId ?? payload.data.id ?? null;
+      let analysis =
+        payload.data.analysis ?? payload.data.report ?? payload.data;
+      const generatedAt =
+        payload.data.generatedAt ??
+        payload.data.createdAt ??
+        new Date().toISOString();
+
+      // If backend returned raw text, parse it into structured object
+      if (typeof analysis === "string") {
+        analysis = parseAnalysisResponse(analysis);
+      } else if (
+        analysis &&
+        typeof analysis === "object" &&
+        analysis.fullText === undefined
+      ) {
+        // If object contains a textual field, try to parse that
+        const textField =
+          (analysis as any).fullText ||
+          (analysis as any).text ||
+          (analysis as any).reportText ||
+          null;
+        if (typeof textField === "string") {
+          analysis = parseAnalysisResponse(textField);
         }
       }
 
-      console.log('Sending request:', requestBody)
+      setAnalysisResult({
+        analysisId,
+        analysis,
+        generatedAt,
+      });
 
-      const response = await fetch('http://127.0.0.1:8080/run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      clearInterval(progressInterval)
-      setProgress(100)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('API Error Response:', errorText)
-        throw new Error(`API Error: ${response.status} - ${errorText}`)
+      // Optionally auto-download PDF
+      try {
+        if (analysisId) {
+          const pdfRes = await fetch(`${apiBase}/analysis/${analysisId}/pdf`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            },
+          });
+          if (pdfRes.ok) {
+            const blob = await pdfRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${data.name}-analysis-report.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          } else {
+            console.warn("PDF generation failed:", pdfRes.status);
+          }
+        }
+      } catch (pdfErr) {
+        console.warn("PDF download error:", pdfErr);
       }
-
-      const result = await response.json()
-      console.log('API Response:', result)
-
-      // Transform the ADK response to our expected format
-      const transformedResult = {
-        analysisId: `analysis_${Date.now()}`,
-        analysis: parseAnalysisResponse(result[0]?.content?.parts?.[0]?.text || ''),
-        generatedAt: new Date().toISOString()
-      }
-
-      setAnalysisResult(transformedResult)
-    } catch (error) {
-      console.error('Analysis generation error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to generate analysis')
+    } catch (err) {
+      console.error("Analysis generation error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to generate analysis"
+      );
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
 
   // Function to parse the AI response and structure it
   const parseAnalysisResponse = (responseText: string) => {
     // Basic parsing - you can enhance this based on your needs
     return {
-      executiveSummary: extractSection(responseText, 'Executive Summary') || 'Analysis completed successfully.',
+      executiveSummary:
+        extractSection(responseText, "Executive Summary") ||
+        "Analysis completed successfully.",
       marketAnalysis: {
-        marketSize: extractSection(responseText, 'Market Analysis') || 'Market analysis provided.',
-        competition: extractSection(responseText, 'Competitive') || 'Competitive analysis included.',
-        opportunities: extractBulletPoints(responseText, 'opportunities') || []
+        marketSize:
+          extractSection(responseText, "Market Analysis") ||
+          "Market analysis provided.",
+        competition:
+          extractSection(responseText, "Competitive") ||
+          "Competitive analysis included.",
+        opportunities: extractBulletPoints(responseText, "opportunities") || [],
       },
       businessModelAnalysis: {
-        valueProposition: extractSection(responseText, 'Value Proposition') || 'Business model evaluated.',
-        scalability: extractSection(responseText, 'Scalability') || 'Scalability assessment provided.'
+        valueProposition:
+          extractSection(responseText, "Value Proposition") ||
+          "Business model evaluated.",
+        scalability:
+          extractSection(responseText, "Scalability") ||
+          "Scalability assessment provided.",
       },
       recommendations: {
-        immediate: extractBulletPoints(responseText, 'Immediate') || [],
-        shortTerm: extractBulletPoints(responseText, 'Short-term') || []
+        immediate: extractBulletPoints(responseText, "Immediate") || [],
+        shortTerm: extractBulletPoints(responseText, "Short-term") || [],
       },
       giAnalysis: {
         marketPotential: Math.floor(Math.random() * 40) + 60, // Mock score
         uniquenessScore: Math.floor(Math.random() * 40) + 60, // Mock score
-        identifiedProducts: []
+        identifiedProducts: [],
       },
-      fullText: responseText // Keep the full response for display
-    }
-  }
+      fullText: responseText, // Keep the full response for display
+    };
+  };
 
   // Helper function to extract sections (basic implementation)
   const extractSection = (text: string, sectionName: string): string => {
-    const regex = new RegExp(`\\*\\*${sectionName}[^\\*]*\\*\\*([^\\*]+)`, 'i')
-    const match = text.match(regex)
-    return match ? match[1].trim() : ''
-  }
+    const regex = new RegExp(`\\*\\*${sectionName}[^\\*]*\\*\\*([^\\*]+)`, "i");
+    const match = text.match(regex);
+    return match ? match[1].trim() : "";
+  };
 
   // Helper function to extract bullet points
   const extractBulletPoints = (text: string, keyword: string): string[] => {
-    const lines = text.split('\n')
-    const bulletPoints: string[] = []
-    let inSection = false
-    
+    const lines = text.split("\n");
+    const bulletPoints: string[] = [];
+    let inSection = false;
+
     for (const line of lines) {
       if (line.toLowerCase().includes(keyword.toLowerCase())) {
-        inSection = true
-        continue
+        inSection = true;
+        continue;
       }
-      if (inSection && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
-        bulletPoints.push(line.replace(/^[-•\d.]\s*/, '').trim())
-      } else if (inSection && line.trim() === '') {
-        continue
-      } else if (inSection && line.startsWith('**')) {
-        break
+      if (
+        inSection &&
+        (line.startsWith("-") || line.startsWith("•") || line.match(/^\d+\./))
+      ) {
+        bulletPoints.push(line.replace(/^[-•\d.]\s*/, "").trim());
+      } else if (inSection && line.trim() === "") {
+        continue;
+      } else if (inSection && line.startsWith("**")) {
+        break;
       }
     }
-    
-    return bulletPoints.slice(0, 5) // Limit to 5 items
-  }
+
+    return bulletPoints.slice(0, 5); // Limit to 5 items
+  };
 
   const downloadPDF = async (analysisId: string, startupName: string) => {
     try {
-      const response = await fetch(`/api/analysis/${analysisId}/pdf`, {
-        method: 'POST',
+      const apiBase =
+        (import.meta.env.VITE_API_URL as string) ||
+        `${window.location.origin}/api`;
+      const response = await fetch(`${apiBase}/analysis/${analysisId}/pdf`, {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to generate PDF')
+        throw new Error("Failed to generate PDF");
       }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${startupName}-analysis-report.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${startupName}-analysis-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('PDF download error:', error)
-      alert('Failed to download PDF report')
+      console.error("PDF download error:", error);
+      alert("Failed to download PDF report");
     }
-  }
+  };
 
   if (analysisResult) {
     return (
@@ -298,32 +376,38 @@ Please structure your response as a comprehensive business analysis report suita
                 <CheckCircle className="h-6 w-6 text-green-500" />
                 <h2 className="text-2xl font-bold">Analysis Complete!</h2>
               </div>
-              <Button 
-                onClick={() => downloadPDF(analysisResult.analysisId, watch('name'))}
+              <Button
+                onClick={() =>
+                  downloadPDF(analysisResult.analysisId, watch("name"))
+                }
                 className="flex items-center space-x-2"
               >
                 <Download className="h-4 w-4" />
                 <span>Download PDF Report</span>
               </Button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Startup Name</p>
-                  <p className="font-medium">{watch('name')}</p>
+                  <p className="font-medium">{watch("name")}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Location</p>
-                  <p className="font-medium">{watch('location')}</p>
+                  <p className="font-medium">{watch("location")}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Employee Count</p>
-                  <p className="font-medium">{watch('employeeCount')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Employee Count
+                  </p>
+                  <p className="font-medium">{watch("employeeCount")}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Generated At</p>
-                  <p className="font-medium">{new Date(analysisResult.generatedAt).toLocaleString()}</p>
+                  <p className="font-medium">
+                    {new Date(analysisResult.generatedAt).toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
@@ -331,13 +415,13 @@ Please structure your response as a comprehensive business analysis report suita
         </Card>
 
         <AnalysisReportViewer analysis={analysisResult.analysis} />
-        
+
         <div className="flex justify-center">
-          <Button 
+          <Button
             onClick={() => {
-              setAnalysisResult(null)
-              setError(null)
-              setProgress(0)
+              setAnalysisResult(null);
+              setError(null);
+              setProgress(0);
             }}
             variant="outline"
           >
@@ -345,7 +429,7 @@ Please structure your response as a comprehensive business analysis report suita
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -357,9 +441,10 @@ Please structure your response as a comprehensive business analysis report suita
             <span>Startup Analysis Request</span>
           </CardTitle>
           <CardDescription>
-            Get a comprehensive AI-powered analysis of your AgriTech startup using Google ADK.
-            Provide your startup details and receive a detailed report with market analysis,
-            business model insights, and recommendations.
+            Get a comprehensive AI-powered analysis of your AgriTech startup
+            using Google Gemini (server-side). Provide your startup details and
+            receive a detailed report with market analysis, business model
+            insights, and recommendations.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -374,8 +459,8 @@ Please structure your response as a comprehensive business analysis report suita
               </div>
               <Progress value={progress} className="h-2" />
               <p className="text-sm text-muted-foreground">
-                Our AI is analyzing your startup data and generating comprehensive insights.
-                This may take a few moments.
+                Our AI is analyzing your startup data and generating
+                comprehensive insights. This may take a few moments.
               </p>
             </div>
           </CardContent>
@@ -405,46 +490,70 @@ Please structure your response as a comprehensive business analysis report suita
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Startup Name *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Startup Name *
+                </label>
                 <input
-                  {...register('name')}
+                  {...register("name")}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., GreenTech Solutions"
                 />
-                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+                {errors.name && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Employee Count *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Employee Count *
+                </label>
                 <input
-                  {...register('employeeCount', { valueAsNumber: true })}
+                  {...register("employeeCount", { valueAsNumber: true })}
                   type="number"
                   min="1"
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                {errors.employeeCount && <p className="text-red-500 text-sm mt-1">{errors.employeeCount.message}</p>}
+                {errors.employeeCount && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.employeeCount.message}
+                  </p>
+                )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Description *</label>
+              <label className="block text-sm font-medium mb-2">
+                Description *
+              </label>
               <textarea
-                {...register('description')}
+                {...register("description")}
                 rows={4}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Describe your startup, what problem it solves, your unique approach, and key features..."
               />
-              {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
+              {errors.description && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.description.message}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Location *</label>
+              <label className="block text-sm font-medium mb-2">
+                Location *
+              </label>
               <input
-                {...register('location')}
+                {...register("location")}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., Punjab, India"
               />
-              {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location.message}</p>}
+              {errors.location && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.location.message}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -460,18 +569,22 @@ Please structure your response as a comprehensive business analysis report suita
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Business Model</label>
+                <label className="block text-sm font-medium mb-2">
+                  Business Model
+                </label>
                 <input
-                  {...register('businessModel')}
+                  {...register("businessModel")}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., B2B SaaS, Marketplace, Direct Sales"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Target Market</label>
+                <label className="block text-sm font-medium mb-2">
+                  Target Market
+                </label>
                 <input
-                  {...register('targetMarket')}
+                  {...register("targetMarket")}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Small farmers, Agricultural cooperatives"
                 />
@@ -488,15 +601,18 @@ Please structure your response as a comprehensive business analysis report suita
               <span>Land Details (Optional)</span>
             </CardTitle>
             <CardDescription>
-              Provide land details for enhanced geographical analysis and GI insights
+              Provide land details for enhanced geographical analysis and GI
+              insights
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Land Type</label>
+                <label className="block text-sm font-medium mb-2">
+                  Land Type
+                </label>
                 <select
-                  {...register('landType')}
+                  {...register("landType")}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Select land type</option>
@@ -509,9 +625,11 @@ Please structure your response as a comprehensive business analysis report suita
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Land Area (acres)</label>
+                <label className="block text-sm font-medium mb-2">
+                  Land Area (acres)
+                </label>
                 <input
-                  {...register('landArea', { valueAsNumber: true })}
+                  {...register("landArea", { valueAsNumber: true })}
                   type="number"
                   step="0.1"
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -524,9 +642,9 @@ Please structure your response as a comprehensive business analysis report suita
 
         {/* Submit Button */}
         <div className="flex justify-center">
-          <Button 
-            type="submit" 
-            size="lg" 
+          <Button
+            type="submit"
+            size="lg"
             disabled={isGenerating}
             className="px-8"
           >
@@ -545,7 +663,7 @@ Please structure your response as a comprehensive business analysis report suita
         </div>
       </form>
     </div>
-  )
+  );
 }
 
 // Component to display the analysis results - enhanced to show full text
@@ -573,7 +691,9 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
             <CardTitle>Executive Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground leading-relaxed">{analysis.executiveSummary}</p>
+            <p className="text-muted-foreground leading-relaxed">
+              {analysis.executiveSummary}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -587,15 +707,21 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
           <CardContent className="space-y-4">
             <div>
               <h4 className="font-medium mb-2">Market Overview</h4>
-              <p className="text-muted-foreground">{analysis.marketAnalysis.marketSize}</p>
+              <p className="text-muted-foreground">
+                {analysis.marketAnalysis.marketSize}
+              </p>
             </div>
             {analysis.marketAnalysis.opportunities.length > 0 && (
               <div>
                 <h4 className="font-medium mb-2">Key Opportunities</h4>
                 <ul className="list-disc list-inside space-y-1">
-                  {analysis.marketAnalysis.opportunities.map((opp: string, index: number) => (
-                    <li key={index} className="text-muted-foreground">{opp}</li>
-                  ))}
+                  {analysis.marketAnalysis.opportunities.map(
+                    (opp: string, index: number) => (
+                      <li key={index} className="text-muted-foreground">
+                        {opp}
+                      </li>
+                    )
+                  )}
                 </ul>
               </div>
             )}
@@ -604,7 +730,8 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
       )}
 
       {/* Recommendations */}
-      {(analysis.recommendations.immediate.length > 0 || analysis.recommendations.shortTerm.length > 0) && (
+      {(analysis.recommendations.immediate.length > 0 ||
+        analysis.recommendations.shortTerm.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle>Recommendations</CardTitle>
@@ -614,9 +741,13 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
               <div>
                 <h4 className="font-medium mb-2">Immediate Actions</h4>
                 <ul className="list-disc list-inside space-y-1">
-                  {analysis.recommendations.immediate.map((rec: string, index: number) => (
-                    <li key={index} className="text-muted-foreground">{rec}</li>
-                  ))}
+                  {analysis.recommendations.immediate.map(
+                    (rec: string, index: number) => (
+                      <li key={index} className="text-muted-foreground">
+                        {rec}
+                      </li>
+                    )
+                  )}
                 </ul>
               </div>
             )}
@@ -624,9 +755,13 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
               <div>
                 <h4 className="font-medium mb-2">Short-term Goals</h4>
                 <ul className="list-disc list-inside space-y-1">
-                  {analysis.recommendations.shortTerm.map((rec: string, index: number) => (
-                    <li key={index} className="text-muted-foreground">{rec}</li>
-                  ))}
+                  {analysis.recommendations.shortTerm.map(
+                    (rec: string, index: number) => (
+                      <li key={index} className="text-muted-foreground">
+                        {rec}
+                      </li>
+                    )
+                  )}
                 </ul>
               </div>
             )}
@@ -634,5 +769,6 @@ function AnalysisReportViewer({ analysis }: { analysis: any }) {
         </Card>
       )}
     </div>
-  )
+  );
 }
+// }...existing code...

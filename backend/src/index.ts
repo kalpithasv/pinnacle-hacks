@@ -5,6 +5,7 @@ import morgan from "morgan";
 import compression from "compression";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
+import analysisRoutes from "./routes/analysis";
 
 // Import routes
 import authRoutes from "./routes/auth";
@@ -13,7 +14,6 @@ import investorRoutes from "./routes/investors";
 import matchmakingRoutes from "./routes/matchmaking";
 import scoringRoutes from "./routes/scoring";
 import discoveryRoutes from "./routes/discovery";
-import analysisRoutes from "./routes/analysis";
 import marketResearchRoutes from "./routes/market-research";
 import { Request, Response } from "express";
 
@@ -22,7 +22,7 @@ dotenv.config();
 
 const app: express.Application = express();
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3001;
+const port = parseInt(process.env.PORT || "3001", 10);
 
 // Middleware
 app.use(helmet());
@@ -36,6 +36,7 @@ app.use(compression());
 app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/analysis", analysisRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -96,10 +97,10 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`📊 Health check: http://localhost:${port}/health`);
+  console.log(`🔗 API base URL: http://localhost:${port}/api`);
 });
 
 export default app;

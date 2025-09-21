@@ -1,9 +1,10 @@
-import express from 'express'
-import { PrismaClient } from '@prisma/client'
-import { z } from 'zod'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
-import adkService, { StartupAnalysisRequest } from '../services/adkService'
-import pdfService from '../services/pdfService'
+import express from "express";
+import { PrismaClient } from "@prisma/client";
+import { z } from "zod";
+import { authenticateToken, AuthRequest } from "../middleware/auth";
+import adkService, { StartupAnalysisRequest } from "../services/adkService";
+import pdfService from "../services/pdfService";
+import geminiService from "../services/geminiService";
 
 interface DbAnalysis {
   id: string;
@@ -26,25 +27,26 @@ interface DbAnalysis {
   };
 }
 
-const router: express.Router = express.Router()
-const prisma = new PrismaClient()
+const router: express.Router = express.Router();
+const prisma = new PrismaClient();
 
 // Validation schemas
 const analysisRequestSchema = z.object({
-  name: z.string().min(1, 'Startup name is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  employeeCount: z.number().min(1, 'Employee count must be at least 1'),
-  location: z.string().min(1, 'Location is required'),
+  name: z.string().min(1, "Startup name is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  employeeCount: z.number().min(1, "Employee count must be at least 1"),
+  location: z.string().min(1, "Location is required"),
   businessModel: z.string().optional(),
   targetMarket: z.string().optional(),
   landType: z.string().optional(),
-  landArea: z.number().positive().optional()
-})
+  landArea: z.number().positive().optional(),
+});
 
 // POST /api/analysis/generate - Generate startup analysis using ADK
-router.post('/generate', authenticateToken, async (req: AuthRequest, res) => {
+// ...existing code...
+router.post("/generate", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const validatedData = analysisRequestSchema.parse(req.body)
+    const validatedData = analysisRequestSchema.parse(req.body);
 
     // Create analysis request object
     const analysisRequest: StartupAnalysisRequest = {
@@ -55,11 +57,13 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res) => {
       businessModel: validatedData.businessModel,
       targetMarket: validatedData.targetMarket,
       landType: validatedData.landType,
-      landArea: validatedData.landArea
-    }
+      landArea: validatedData.landArea,
+    };
 
-    // Generate analysis using ADK
-    const analysis = await adkService.generateStartupAnalysis(analysisRequest)
+    // Generate analysis using Gemini service instead of ADK
+    const analysis = await geminiService.generateStartupAnalysis(
+      analysisRequest
+    );
 
     // Save analysis to database
     const savedAnalysis = await prisma.startupAnalysis.create({
@@ -74,39 +78,40 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res) => {
         landArea: analysisRequest.landArea,
         analysisData: JSON.stringify(analysis),
         generatedBy: req.user!.id,
-        status: 'completed'
-      }
-    })
+        status: "completed",
+      },
+    });
 
     res.json({
       success: true,
       data: {
         analysisId: savedAnalysis.id,
         analysis,
-        generatedAt: savedAnalysis.createdAt
-      }
-    })
+        generatedAt: savedAnalysis.createdAt,
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
-        error: 'Validation error',
-        details: error.errors
-      })
+        error: "Validation error",
+        details: error.errors,
+      });
     }
 
-    console.error('Analysis generation error:', error)
+    console.error("Analysis generation error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate analysis'
-    })
+      error: "Failed to generate analysis",
+    });
   }
-})
+});
+// ...existing code...
 
 // GET /api/analysis/:id - Get analysis by ID
-router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
+router.get("/:id", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     const analysis = await prisma.startupAnalysis.findUnique({
       where: { id },
@@ -114,28 +119,28 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         generatedByUser: {
           select: {
             name: true,
-            email: true
-          }
-        }
-      }
-    })
+            email: true,
+          },
+        },
+      },
+    });
 
     if (!analysis) {
       return res.status(404).json({
         success: false,
-        error: 'Analysis not found'
-      })
+        error: "Analysis not found",
+      });
     }
 
     // Check if user has access to this analysis
-    if (analysis.generatedBy !== req.user!.id && req.user!.role !== 'admin') {
+    if (analysis.generatedBy !== req.user!.id && req.user!.role !== "admin") {
       return res.status(403).json({
         success: false,
-        error: 'Access denied'
-      })
+        error: "Access denied",
+      });
     }
 
-    const analysisData = JSON.parse(analysis.analysisData)
+    const analysisData = JSON.parse(analysis.analysisData);
 
     res.json({
       success: true,
@@ -152,47 +157,46 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         analysis: analysisData,
         generatedBy: analysis.generatedByUser,
         generatedAt: analysis.createdAt,
-        status: analysis.status
-      }
-    })
+        status: analysis.status,
+      },
+    });
   } catch (error) {
-    console.error('Error fetching analysis:', error)
+    console.error("Error fetching analysis:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch analysis'
-    })
+      error: "Failed to fetch analysis",
+    });
   }
-})
+});
 
 // GET /api/analysis - Get user's analyses
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+router.get("/", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { page = '1', limit = '10' } = req.query
-    const pageNum = parseInt(page as string)
-    const limitNum = parseInt(limit as string)
-    const skip = (pageNum - 1) * limitNum
+    const { page = "1", limit = "10" } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
 
-    const where = req.user!.role === 'admin' 
-      ? {} 
-      : { generatedBy: req.user!.id }
+    const where =
+      req.user!.role === "admin" ? {} : { generatedBy: req.user!.id };
 
     const [analyses, total] = await Promise.all([
       prisma.startupAnalysis.findMany({
         where,
         skip,
         take: limitNum,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           generatedByUser: {
             select: {
               name: true,
-              email: true
-            }
-          }
-        }
+              email: true,
+            },
+          },
+        },
       }),
-      prisma.startupAnalysis.count({ where })
-    ])
+      prisma.startupAnalysis.count({ where }),
+    ]);
 
     res.json({
       success: true,
@@ -203,49 +207,49 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         employeeCount: analysis.employeeCount,
         status: analysis.status,
         generatedBy: analysis.generatedByUser,
-        generatedAt: analysis.createdAt
+        generatedAt: analysis.createdAt,
       })),
       pagination: {
         page: pageNum,
         limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limitNum)
-      }
-    })
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (error) {
-    console.error('Error fetching analyses:', error)
+    console.error("Error fetching analyses:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch analyses'
-    })
+      error: "Failed to fetch analyses",
+    });
   }
-})
+});
 
 // POST /api/analysis/:id/pdf - Generate PDF report
-router.post('/:id/pdf', authenticateToken, async (req: AuthRequest, res) => {
+router.post("/:id/pdf", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     const analysis = await prisma.startupAnalysis.findUnique({
-      where: { id }
-    })
+      where: { id },
+    });
 
     if (!analysis) {
       return res.status(404).json({
         success: false,
-        error: 'Analysis not found'
-      })
+        error: "Analysis not found",
+      });
     }
 
     // Check if user has access to this analysis
-    if (analysis.generatedBy !== req.user!.id && req.user!.role !== 'admin') {
+    if (analysis.generatedBy !== req.user!.id && req.user!.role !== "admin") {
       return res.status(403).json({
         success: false,
-        error: 'Access denied'
-      })
+        error: "Access denied",
+      });
     }
 
-    const analysisData = JSON.parse(analysis.analysisData)
+    const analysisData = JSON.parse(analysis.analysisData);
 
     // Create analysis request object for PDF generation
     const analysisRequest: StartupAnalysisRequest = {
@@ -256,31 +260,37 @@ router.post('/:id/pdf', authenticateToken, async (req: AuthRequest, res) => {
       businessModel: analysis.businessModel ?? undefined,
       targetMarket: analysis.targetMarket ?? undefined,
       landType: analysis.landType ?? undefined,
-      landArea: analysis.landArea ?? undefined
-    }
+      landArea: analysis.landArea ?? undefined,
+    };
 
     // Generate PDF
-    const pdfBuffer = await pdfService.generateStartupReport(analysisRequest, analysisData)
+    const pdfBuffer = await pdfService.generateStartupReport(
+      analysisRequest,
+      analysisData
+    );
 
     // Set response headers for PDF download
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="${analysis.startupName}-analysis-report.pdf"`)
-    res.setHeader('Content-Length', pdfBuffer.length)
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${analysis.startupName}-analysis-report.pdf"`
+    );
+    res.setHeader("Content-Length", pdfBuffer.length);
 
-    res.send(pdfBuffer)
+    res.send(pdfBuffer);
   } catch (error) {
-    console.error('PDF generation error:', error)
+    console.error("PDF generation error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate PDF report'
-    })
+      error: "Failed to generate PDF report",
+    });
   }
-})
+});
 
 // POST /api/analysis/quick - Quick analysis without saving to database
-router.post('/quick', authenticateToken, async (req: AuthRequest, res) => {
+router.post("/quick", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const validatedData = analysisRequestSchema.parse(req.body)
+    const validatedData = analysisRequestSchema.parse(req.body);
 
     const analysisRequest: StartupAnalysisRequest = {
       name: validatedData.name,
@@ -290,34 +300,34 @@ router.post('/quick', authenticateToken, async (req: AuthRequest, res) => {
       businessModel: validatedData.businessModel,
       targetMarket: validatedData.targetMarket,
       landType: validatedData.landType,
-      landArea: validatedData.landArea
-    }
+      landArea: validatedData.landArea,
+    };
 
     // Generate analysis using ADK
-    const analysis = await adkService.generateStartupAnalysis(analysisRequest)
+    const analysis = await adkService.generateStartupAnalysis(analysisRequest);
 
     res.json({
       success: true,
       data: {
         analysis,
-        generatedAt: new Date()
-      }
-    })
+        generatedAt: new Date(),
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
-        error: 'Validation error',
-        details: error.errors
-      })
+        error: "Validation error",
+        details: error.errors,
+      });
     }
 
-    console.error('Quick analysis error:', error)
+    console.error("Quick analysis error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate quick analysis'
-    })
+      error: "Failed to generate quick analysis",
+    });
   }
-})
+});
 
-export default router
+export default router;

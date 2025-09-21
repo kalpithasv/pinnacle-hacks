@@ -12,12 +12,12 @@ const projectDataSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   industry: z.string().min(1, "Industry is required"),
-  
+
   // Online presence
   website: z.string().url().optional(),
   githubUrl: z.string().url().optional(),
   twitterUrl: z.string().url().optional(),
-  
+
   // Location and team
   location: z.string().min(1, "Location is required"),
   teamSize: z.number().int().positive("Team size must be at least 1"),
@@ -231,35 +231,35 @@ router.put("/:id/verify", async (req, res) => {
           name: projectData.name,
           description: projectData.description,
           industry: projectData.industry,
-          
+
           // Online presence
           website: projectData.website,
           githubUrl: projectData.githubUrl,
           twitterUrl: projectData.twitterUrl,
-          
+
           // Land details
-          landLocation: projectData.location,
+          landLocation: projectData.location, // map verified location to landLocation
           landArea: projectData.landArea,
           landOwnership: projectData.landOwnership,
           landType: projectData.landType,
-          
+
           // Team & Stage
           teamSize: projectData.teamSize,
           stage: projectData.stage,
           tags: projectData.tags ?? [],
-          
+
           // Founder details
           founderName: projectData.founderName,
           founderEmail: projectData.founderEmail,
           founderPhone: projectData.founderPhone,
-          
+
           // Business details
           businessModel: projectData.businessModel,
           targetMarket: projectData.targetMarket,
           currentFunding: projectData.currentFunding,
           expectedRevenue: projectData.expectedRevenue,
           fundingRequired: projectData.fundingRequired,
-          
+
           // Status
           isVerified: false,
         },
